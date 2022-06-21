@@ -1,0 +1,97 @@
+version: '3'
+services:
+  ############################
+  # Publisher app + Dapr sidecar
+  ############################
+  checkoutapp:
+    build: ./checkout
+    depends_on:
+      - redis
+      - placement
+    networks:
+      - dapr-network
+  checkoutapp-dapr:
+    image: "daprio/daprd:edge"
+    command: ["./daprd",
+     "-app-id", "checkout",
+     "-placement-host-address", "placement:50006",
+     "-components-path", "/components",
+     "-log-level", "debug"]
+    volumes:
+        - "./components/:/components"
+    depends_on:
+      - checkoutapp
+    network_mode: "service:checkoutapp"
+  ############################
+  # Subscriber app + Dapr sidecar
+  ############################
+  orderprocessorapp:
+    build: ./order-processor
+    ports:
+      - "50002:50002"
+    depends_on:
+      - redis
+      - placement
+    networks:
+      - dapr-network
+  orderprocessorapp-dapr:
+    image: "daprio/daprd:edge"
+    command: ["./daprd",
+     "-app-id", "order-processor",
+     "-app-port", "80",
+     "-dapr-grpc-port", "50002",
+     "-placement-host-address", "placement:50006",
+     "-components-path", "/components",
+     "-log-level", "debug"]
+    volumes:
+      - "./components/:/components"
+    depends_on:
+      - orderprocessorapp
+    network_mode: "service:orderprocessorapp"
+  ############################
+  # Subscriber app + Dapr sidecar
+  ############################
+  orderprocessorapp2:
+    build: ./order-processor
+    ports:
+      - "50003:50003"
+    depends_on:
+      - redis
+      - placement
+    networks:
+      - dapr-network
+  orderprocessorapp2-dapr:
+    image: "daprio/daprd:edge"
+    command: ["./daprd",
+     "-app-id", "order-processor",
+     "-app-port", "80",
+     "-dapr-grpc-port", "50003",
+     "-placement-host-address", "placement:50006",
+     "-components-path", "/components",
+     "-log-level", "debug"]
+    volumes:
+      - "./components/:/components"
+    depends_on:
+      - orderprocessorapp2
+    network_mode: "service:orderprocessorapp2"
+  ############################
+  # Dapr placement service
+  ############################
+  placement:
+    image: "daprio/dapr"
+    command: ["./placement", "-port", "50006"]
+    ports:
+      - "50006:50006"
+    networks:
+      - dapr-network
+  ############################
+  # Redis state store
+  ############################
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6380:6379"
+    networks:
+      - dapr-network
+networks:
+    dapr-network:
